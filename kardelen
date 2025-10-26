@@ -1,0 +1,113 @@
+import matplotlib.pyplot as plt 
+import csv 
+ 
+# Full paths for each file 
+coordinates_path = 'coordinates_6.csv' 
+costs_path = 'costs_6.csv' 
+demands_path = 'demand_6.csv' 
+ 
+# Open each file using the full paths 
+with open(coordinates_path, 'r') as file: 
+    reader = csv.reader(file) 
+    next(reader) 
+    coordinates_data = [(int(row[0]), int(row[1])) for row in reader] 
+ 
+with open(costs_path, 'r') as file: 
+    reader = csv.reader(file) 
+    next(reader) 
+    costs_data = [ 
+        (int(row[0]), int(row[1]), int(row[2]), int(row[3]), int(row[4]), 
+         int(row[5]), int(row[6]), int(row[7]), int(row[8]), int(row[9])) 
+        for row in reader 
+    ] 
+ 
+with open(demands_path, 'r') as file: 
+    reader = csv.reader(file) 
+    next(reader) 
+    demands_data = [int(row[0]) for row in reader] 
+ 
+facility_cost_list = [list(col) for col in zip(*costs_data)] 
+ 
+#First, we need to find the total cost of assigning facility i to customer j per unit distance
+#For the first part of the question, we only need a single i, which is k. But in order to check whether the code works for different facilities as well, they will also be defined
+cij = [] 
+for i in range(10): 
+    for j in range(100): 
+        cij.append(facility_cost_list[i][j] * demands_data[j]) 
+#By these lines, we find Ckj in Ckj = hj*ckj 
+facility_1 = cij[0:100] 
+facility_2 = cij[100:200] 
+facility_3 = cij[200:300] 
+facility_4 = cij[300:400] 
+facility_5 = cij[400:500] 
+facility_6 = cij[500:600] 
+facility_7 = cij[600:700] 
+facility_8 = cij[700:800] 
+facility_9 = cij[800:900] 
+facility_10 = cij[900:1000] 
+ 
+def squared_euclidean_distance(x1, y1, x2, y2): #Squared euclidian distance can be defined as such 
+    return (x1 - x2) ** 2 + (y1 - y2) ** 2 
+ 
+#Our objective function is Sum,j(Cij· d(xi,aj)) 
+def objective_function(Ckj, coord , coordinates_data): 
+    x_k, y_k = coord 
+    total_cost = sum(Ckj[j] * squared_euclidean_distance(x_k, y_k, x_j, y_j) for 
+j, (x_j, y_j) in enumerate(coordinates_data)) 
+    return total_cost 
+ 
+#In order to find the best solution, gradient of the objective function should be observed 
+#Here, it can be observed that we will need only one iteration for this part of this question due to picking 
+#squared euclidian distance as a measure of the distance. 
+def gradient(x, y, Ckj, customer_coords): 
+    # We calculate gradients with respect to x and y of coordinates 
+    gradient_x = sum(2 * Ckj[j] * (x - x_j) for j, (x_j, y_j) in 
+enumerate(customer_coords)) 
+    gradient_y = sum(2 * Ckj[j] * (y - y_j) for j, (x_j, y_j) in 
+enumerate(customer_coords)) 
+    return gradient_x, gradient_y 
+ 
+#After calculating the gradient, we find only stationary point x = Sum(Ckj*aj1)/Sum(Ckj) and y = Sum(Ckj*aj2)/Sum(Ckj) 
+#We need to check whether the function has positive definite Hessian, if yes then it is strictly convex 
+#Thus, it would indicate a global min. 
+#Hessian for squared euclidian distance is always positive definite 
+#since LPM's of the Hessian are positive. 
+def optimal_location_from_gradient(coordinates_data, Ckj): 
+    total_cost = sum(Ckj) 
+    optimal_x = sum(Ckj[j] * coordinates_data[j][0] for j in 
+range(len(coordinates_data))) / total_cost 
+    optimal_y = sum(Ckj[j] * coordinates_data[j][1] for j in 
+range(len(coordinates_data))) / total_cost 
+ 
+    return (optimal_x, optimal_y) 
+ 
+#These lines find the optimum point and the cost for the function 
+optimal_loc_gradient = optimal_location_from_gradient(coordinates_data, 
+facility_5) 
+objective_value = objective_function(facility_5, optimal_loc_gradient, 
+coordinates_data) 
+ 
+customer_x = [coord[0] for coord in coordinates_data] 
+customer_y = [coord[1] for coord in coordinates_data] 
+ 
+plt.figure(figsize=(10, 6)) 
+plt.scatter(customer_x, customer_y, c='blue', label='Customer Locations', 
+marker='o') 
+plt.scatter(optimal_loc_gradient[0], optimal_loc_gradient[1], c='red', 
+label='Optimal Facility Location', marker='x', s=200) 
+ 
+for i, (x, y) in enumerate(coordinates_data): 
+    plt.text(x, y, str(i), fontsize=9, ha='right') 
+ 
+plt.title('Customer Locations and Optimal Facility Location for Squared Euclidian Distance', fontsize=10)
+plt.xlabel('X Coordinate') 
+plt.ylabel('Y Coordinate') 
+plt.axhline(0, color='black', linewidth=0.5, ls='--') 
+plt.axvline(0, color='black', linewidth=0.5, ls='--') 
+plt.grid(color='gray', linestyle='--', linewidth=0.5) 
+plt.legend() 
+plt.show() 
+ 
+# Print the optimal location 
+print(f"Optimal Location for Facility 5: {optimal_loc_gradient}") 
+print(f"Objective Function Value at Optimal Location: {objective_value}")
