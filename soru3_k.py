@@ -16,9 +16,13 @@ TOL = 1e-9      # Convergence tolerance (for stability, not used directly in thi
 RNG_SEED = 42
 random.seed(RNG_SEED) # Rastgeleliği sabitledik
 
-# --- DATA READING FUNCTIONS ---
+# --- DECISION VARIABLES (Homework Notation) ---
+# xi : facility locations (list of tuples) -> heuristic'in bulduğu konumları burada saklayacağız
+# yij: assignment matrix (m x n, 0/1) -> müşteri j, tesis i'ye atanmışsa 1, aksi halde 0
+X_vars = None  # [(x1_1, x2_1), ..., (x1_m, x2_m)]
+Y_vars = None  # [[y11, y12, ... y1n], ..., [ym1, ... ymn]]
 
-# (read_coordinates, read_demands, read_costs fonksiyonları aynı bırakılmıştır)
+# --- DATA READING FUNCTIONS ---
 
 def read_coordinates(path):
     """Reads customer coordinates (x, y)."""
@@ -111,6 +115,19 @@ def squared_euclidean_distance(coord1, coord2):
     """Karesel Öklid mesafesini hesaplar."""
     return (coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2
 
+# --- ASSIGNMENTS -> y_ij (0/1) Yardımcı Fonksiyonu ---
+def assignments_to_y(assignments, m, n):
+    """
+    'assignments' (tesis başına müşteri indeks listesi) yapısını,
+    y_ij=1 müşteri j tesis i'ye atanmışsa, aksi halde 0 olacak şekilde
+    (m x n) ikili matrise dönüştürür.
+    """
+    y = [[0]*n for _ in range(m)]
+    for i_fac in range(m):
+        for j in assignments[i_fac]:
+            y[i_fac][j] = 1  # müşteri j, tesis i_fac'e atanmış
+    return y
+
 def run_ALA():
     """Runs one iteration of the Alternate Location-Allocation Algorithm."""
     
@@ -200,6 +217,11 @@ for i in range(N_TRIALS):
     if val < best_val:
         best_val, best_locations, best_assignments = val, locs, assign
 
+# --- DECISION VARIABLES FROM BEST SOLUTION ---
+# Burada karar değişkenlerini en iyi çözümden türetiyoruz:
+X_vars = best_locations                                               # xi (sürekli)
+Y_vars = assignments_to_y(best_assignments, N_FACILITIES, n_customers)  # yij (0/1 ikili)
+
 # --- RESULTS ---
 # ------------------------------
 
@@ -216,6 +238,20 @@ for i in range(N_FACILITIES):
     status = "Active" if num_customers > 0 else "Empty"
     print(f"Facility_{i+1:<2} | Location: ({loc[0]:.2f}, {loc[1]:.2f}) | "
           f"Customers: {num_customers:<3} | Status: {status}")
+
+# --- REPORT DECISION VARIABLES CLEARLY ---
+print("\n--- Decision Variables (Heuristic Solution) ---")
+for i, (x1, x2) in enumerate(X_vars, start=1):
+    print(f"x_{i} = ({x1:.4f}, {x2:.4f})")
+
+print("\ny_ij (assignment matrix, 1 if customer j assigned to facility i else 0)")
+for i in range(N_FACILITIES):
+    row = " ".join(str(int(v)) for v in Y_vars[i])
+    print(f"i={i+1}: {row}")
+
+# (Opsiyonel) Doğrulama: her müşteri tam bir tesise atanmış mı? sum_i y_ij = 1
+valid = all(sum(Y_vars[i][j] for i in range(N_FACILITIES)) == 1 for j in range(n_customers))
+print(f"\nAssignment validity (∀j Σ_i y_ij = 1): {valid}")
 
 # --- PLOTTING ---
 # ------------------------------
