@@ -199,7 +199,7 @@ def run_ALA():
             locations = updated_locations
             assignments = new_assignments
         else:
-            # İyileşme yoksa döngüyü sonlandır
+            # End if objective doesnt get better
             break
 
     return best_objective, locations, assignments
@@ -218,7 +218,7 @@ for i in range(N_TRIALS):
         best_val, best_locations, best_assignments = val, locs, assign
 
 # --- DECISION VARIABLES FROM BEST SOLUTION ---
-# Burada karar değişkenlerini en iyi çözümden türetiyoruz:
+# Decision variables:
 X_vars = best_locations                                               # xi (sürekli)
 Y_vars = assignments_to_y(best_assignments, N_FACILITIES, n_customers)  # yij (0/1 ikili)
 
