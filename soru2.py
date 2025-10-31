@@ -100,7 +100,7 @@ Ckj_selected = [facility_k_costs[j] * demands_data[j] for j in range(n)]
 
 def euclidean_distance(x1, y1, x2, y2):
     """Calculates the standard Euclidean distance."""
-    return math.sqrt((x1 - x2)*2 + (y1 - y2)*2)
+    return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
 def objective_function_euclidean(Ckj, coord, coordinates):
     """Calculates the total weighted Euclidean cost (The Fermat-Weber Problem)."""
