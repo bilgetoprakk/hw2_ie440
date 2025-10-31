@@ -3,6 +3,9 @@ import random
 import math
 import matplotlib.pyplot as plt
 
+import statistics as stats  # NEW
+N_TRIALS = 100             # NEW: kaç farklı rastgele başlatma
+
 # ------------------------------
 # CONFIG
 # ------------------------------
@@ -205,78 +208,91 @@ def objective_function(final_facility_locations, list_of_customers_assigned_to_c
 # ------------------------------
 # ANA ÇÖZÜM DÖNGÜSÜ
 # ------------------------------
-initial_assignments = random_allocation(n, m)
-random_facility_coordinates = initial_coordinates_for_all_facilities(initial_assignments, m)
 
-nearest_facilities_customers_list1 = nearest_facility(random_facility_coordinates)
-Iteration1_Locations = Weisfeld_Iterations(random_facility_coordinates, nearest_facilities_customers_list1)
+def ala_single_run():
+    # --- ANA ÇÖZÜM DÖNGÜSÜ (aynı içerik) ---
+    initial_assignments = random_allocation(n, m)
+    random_facility_coordinates = initial_coordinates_for_all_facilities(initial_assignments, m)
 
-Iteration_Locations = Iteration1_Locations
-iteration_number = 0
+    nearest_facilities_customers_list1 = nearest_facility(random_facility_coordinates)
+    Iteration1_Locations = Weisfeld_Iterations(random_facility_coordinates, nearest_facilities_customers_list1)
 
-print("\n--- ALA (Weiszfeld) İterasyonları Başlıyor ---")
-while True:
-    iteration_number += 1
-    nearest_list = nearest_facility(Iteration_Locations)
-    W_k = Weisfeld_Iterations(Iteration_Locations, nearest_list)
-    total_difference = 0
-    for k in range(m):
-        diff_sq = (W_k[k][0] - Iteration_Locations[k][0])**2 + \
-                  (W_k[k][1] - Iteration_Locations[k][1])**2
-        total_difference += diff_sq
-    Iteration_Locations = W_k
-    if total_difference <= TOL:
-        print(f"\nAlgoritma Sona Erdi. (Toplam Karesel Fark: {total_difference:.12f})")
-        break
-    if iteration_number % 10 == 0 or iteration_number < 5:
-        print(f"ITERASYON: {iteration_number}")
+    Iteration_Locations = Iteration1_Locations
+    iteration_number = 0
 
-# --- DECISION VARIABLES FROM FINAL SOLUTION ---
-# x_i : Weiszfeld sonrası nihai tesis konumları
-# y_ij: nihai atamalardan 0/1 matris
-X_vars = [tuple(p) for p in W_k]
-Y_vars = assignments_to_y(nearest_list, m, n)
+    while True:
+        iteration_number += 1
+        nearest_list = nearest_facility(Iteration_Locations)
+        W_k = Weisfeld_Iterations(Iteration_Locations, nearest_list)
+        total_difference = 0
+        for k in range(m):
+            diff_sq = (W_k[k][0] - Iteration_Locations[k][0])**2 + (W_k[k][1] - Iteration_Locations[k][1])**2
+            total_difference += diff_sq
+        Iteration_Locations = W_k
+        if total_difference <= TOL:
+            break
 
-print("\n--- Nihai Sonuç ---")
-print(f"Toplam İterasyon: {iteration_number}")
-print(f"Nihai Amaç Değeri: {objective_function(W_k, nearest_list):.6f}")
+    # Karar değişkenleri ve amaç
+    X_vars = [tuple(p) for p in W_k]
+    Y_vars = assignments_to_y(nearest_list, m, n)
+    obj    = objective_function(W_k, nearest_list)
+    valid  = all(sum(Y_vars[i][j] for i in range(m)) == 1 for j in range(n))
+    return obj, iteration_number, W_k, nearest_list, X_vars, Y_vars, valid
 
-print("\nNihai Tesis Konumları:")
+
+
+# ------------------------------
+# MULTI-START: N_TRIALS koş, istatistik topla
+# ------------------------------
+all_vals = []
+all_iters = []
+best_val = float('inf')
+best_pack = None  # (obj, iters, W_k, nearest_list, X_vars, Y_vars, valid)
+
+for t in range(N_TRIALS):
+    obj, iters, W_k, nearest_list, X_vars, Y_vars, valid = ala_single_run()
+    all_vals.append(obj)
+    all_iters.append(iters)
+    if obj < best_val:
+        best_val = obj
+        best_pack = (obj, iters, W_k, nearest_list, X_vars, Y_vars, valid)
+
+# İstatistikler
+avg_val = stats.mean(all_vals)
+std_val = stats.stdev(all_vals) if len(all_vals) >= 2 else 0.0
+avg_iter = stats.mean(all_iters)
+
+print("\n--- ALA (Weiszfeld) Multi-Start Summary ---")
+print(f"Trials (N):                {N_TRIALS}")
+print(f"Best Objective Value:      {best_val:.6f}")
+print(f"Average Objective Value:   {avg_val:.6f}")
+print(f"Std Dev Objective Value:   {std_val:.6f}")
+print(f"Average #Iterations:       {avg_iter:.2f}")
+
+# En iyi çözümün detaylarını yaz
+obj, iters, W_k, nearest_list, X_vars, Y_vars, valid = best_pack
+print("\n--- Best Solution (Details) ---")
+print(f"Iterations: {iters}")
+print(f"Objective:  {obj:.6f}")
+print(f"Assignment validity (∀j Σ_i y_ij = 1): {valid}")
+
+print("\nBest Facility Locations:")
 for k in range(m):
     loc = W_k[k]
     cnt = len(nearest_list[k])
     status = "Aktif" if cnt > 0 else "Boş"
     print(f"Tesis_{k+1:<2}: Konum ({loc[0]:.4f}, {loc[1]:.4f}) | Müşteri Sayısı: {cnt:<4} | Durum: {status}")
 
-# --- Karar Değişkenlerini Raporla ---
-print("\n--- Decision Variables (Heuristic Solution) ---")
-for i, (x1, x2) in enumerate(X_vars, start=1):
-    print(f"x_{i} = ({x1:.4f}, {x2:.4f})")
-
-print("\ny_ij (assignment matrix, 1 if customer j assigned to facility i else 0)")
-for i in range(m):
-    row = " ".join(str(int(v)) for v in Y_vars[i])
-    print(f"i={i+1}: {row}")
-
-# (Opsiyonel) Her müşteri tam bir tesise atanmış mı?  Σ_i y_ij = 1
-valid = all(sum(Y_vars[i][j] for i in range(m)) == 1 for j in range(n))
-print(f"\nAssignment validity (∀j Σ_i y_ij = 1): {valid}")
-
 # ------------------------------
-# ÇİZİM KISMI
+# ÇİZİM (Best Solution)
 # ------------------------------
 try:
     plt.figure(figsize=(11, 8))
     customer_x_coords, customer_y_coords = zip(*A)
     plt.scatter(customer_x_coords, customer_y_coords, s=20, alpha=0.6, label='Müşteriler', color='blue')
 
-    active_facilities_locs = []
-    empty_facilities_locs = []
-    for k in range(m):
-        if len(nearest_list[k]) > 0:
-            active_facilities_locs.append(W_k[k])
-        else:
-            empty_facilities_locs.append(W_k[k])
+    active_facilities_locs = [W_k[k] for k in range(m) if len(nearest_list[k]) > 0]
+    empty_facilities_locs  = [W_k[k] for k in range(m) if len(nearest_list[k]) == 0]
 
     if active_facilities_locs:
         ax, ay = zip(*active_facilities_locs)
@@ -285,13 +301,14 @@ try:
         ex, ey = zip(*empty_facilities_locs)
         plt.scatter(ex, ey, marker='X', s=200, color='gray', alpha=0.5, label='Boş Tesisler', zorder=5)
 
+    # Atama çizgileri
     for k in range(m):
         xk, yk = W_k[k]
         for j in nearest_list[k]:
             xj, yj = A[j]
             plt.plot([xk, xj], [yk, yj], linestyle='--', linewidth=0.5, color='orange', alpha=0.3)
 
-    plt.title(f"Tesis Yerleşimi ve Müşteri Atamaları (m={m}, n={n})")
+    plt.title(f"Best Trial – Facility Locations & Assignments (m={m}, n={n})")
     plt.xlabel("X Koordinatı")
     plt.ylabel("Y Koordinatı")
     plt.legend()
