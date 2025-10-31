@@ -3,8 +3,8 @@ import random
 import math
 import matplotlib.pyplot as plt
 
-import statistics as stats  # NEW
-N_TRIALS = 100             # NEW: kaç farklı rastgele başlatma
+import statistics as stats  
+N_TRIALS = 100             # number of random initializations
 
 # ------------------------------
 # CONFIG
@@ -13,20 +13,20 @@ coordinates_path = 'coordinates_6.csv'
 costs_path       = 'costs_6.csv'
 demands_path     = 'demand_6.csv'
 
-TOL = 1e-5  # Yakınsama toleransı (İlk koddaki 0.00001'e denk gelir)
-EPS = 1e-12 # Sıfıra bölme hatası için küçük bir değer
+TOL = 1e-5  # convergence tolerance
+EPS = 1e-12 # small epsilon to avoid division by zero
 
-# RASTGELELİĞİ SABİTLEME
+# fix randomness for reproducibility
 random.seed(42) 
 
-# --- DECISION VARIABLES (formal tanım) ---
-# xi  : tesis konumları (liste/tuple) -> Weiszfeld çıktısıyla dolduracağız
-# yij : (m x n) 0/1 atama matrisi -> nihai atamalardan üretilecek
+# --- DECISION VARIABLES (formal definition) ---
+# xi  : facility locations (list/tuple) ->  will be filled by Weiszfeld iteration
+# yij : (m x n) 0/1 assignment matrix -> derived from final assignments
 X_vars = None  # [(x1_1, x2_1), ..., (x1_m, x2_m)]
 Y_vars = None  # [[y11, y12, ... y1n], ..., [ym1, ... ymn]]
 
 # ------------------------------
-# IO helpers (Yeni koddaki robust okuma fonksiyonları)
+# IO helpers 
 # ------------------------------
 def read_coordinates(path):
     coords = []
@@ -61,40 +61,40 @@ def read_costs(path):
 def transpose(mat): return [list(col) for col in zip(*mat)]
 
 # ------------------------------
-# VERİ YÜKLEME VE MATRİS ŞEKİLLENDİRME
+# DATA LOADING AND MATRIX SHAPING
 # ------------------------------
 A  = read_coordinates(coordinates_path)
 h  = read_demands(demands_path)
 R  = read_costs(costs_path)
 
-n = len(A) # Müşteri sayısı
-if n==0: raise ValueError("Boş koordinatlar.")
-if len(h)!=n: raise ValueError(f"Talep/Koordinat uyuşmazlığı: {len(h)} vs {n}")
+n = len(A) # number of customers
+if n==0: raise ValueError("empty coordinates.")
+if len(h)!=n: raise ValueError(f"Demand/coordinate mismatch: {len(h)} vs {n}")
 
 r, c = len(R), len(R[0])
 if r==n and c>0:
     Cmat = transpose(R)  # m x n
-    m    = c             # Tesis sayısı (m)
+    m  = c             #number of facilities(m)
 elif c==n and r>0:
     Cmat = R             # m x n
-    m    = r             # Tesis sayısı (m)
+    m  = r             #number of facilities (m)
 else:
-    raise ValueError(f"Beklenmedik maliyet matrisi boyutu {r}x{c} (n={n})")
+    raise ValueError(f"Unexpected cost matrix size{r}x{c} (n={n})")
 
-print(f"Veriler Yüklendi. Tesis sayısı (m): {m}, Müşteri sayısı (n): {n}")
+print(f"Data loaded.Number of facilities (m): {m}, number of customers(n): {n}")
 
 # ------------------------------
-# TEMEL GEOMETRİ FONKSİYONLARI
+#BASIC GEOMETRIC FUNCTIONS
 # ------------------------------
 def euclidian_distance(p, q):
-    """İki nokta arasındaki Öklid mesafesi."""
+    """Euclidian distance between two points."""
     return math.hypot(p[0]-q[0], p[1]-q[1])
 
-# --- ASSIGNMENTS -> y_ij (0/1) Yardımcısı ---
+# --- ASSIGNMENTS -> y_ij (0/1) helper ---
 def assignments_to_y(assignments, m, n):
     """
-    'assignments' (tesis başına müşteri indeks listesi) -> (m x n) ikili y_ij matrisi.
-    y_ij = 1  ⇔ müşteri j tesis i'ye atanmış.
+    'assignments' (list of customer indices per facility) -> (m x n) binary y_ij matrix.
+    y_ij = 1  ⇔ customer j assigned to facility i.
     """
     y = [[0]*n for _ in range(m)]
     for i_fac in range(m):
@@ -103,7 +103,7 @@ def assignments_to_y(assignments, m, n):
     return y
 
 # ------------------------------
-# BAŞLANGIÇ ATAMA VE YERLEŞİM
+# Initial Assignment and location
 # ------------------------------
 def random_allocation(number_of_customers, number_of_facilities):
     facility_assignments = [[] for _ in range(number_of_facilities)]
@@ -114,7 +114,7 @@ def random_allocation(number_of_customers, number_of_facilities):
 
 def initial_coordinate_for_one_facility(customer_indices, k_facility_index):
     """
-    Başlangıç centroid: w = h_j * C_kj
+    Initial centroid: w = h_j * C_kj
     """
     weight_x = 0
     weight_y = 0
@@ -137,12 +137,12 @@ def initial_coordinates_for_all_facilities(random_allocation_list, number_of_fac
             for k in range(number_of_facilities)]
 
 # ------------------------------
-# ATAMA ADIMI (ALLOCATION)
+# Allocation Step
 # ------------------------------
 def nearest_facility(list_of_new_locations):
     """
-    Müşterileri mevcut tesislere yeniden atar.
-    Kriter: min_k (C_kj * d(x_k, a_j))
+    Reassign customers to existing facilities.
+    Criterion: min_k (C_kj * d(x_k, a_j))
     """
     facility_assignments = [[] for _ in range(m)]
     for j in range(n):
@@ -159,12 +159,12 @@ def nearest_facility(list_of_new_locations):
     return facility_assignments
 
 # ------------------------------
-# YERLEŞİM ADIMI (LOCATION - WEISZFELD)
+# LOCATION STEP (WEISZFELD)
 # ------------------------------
 def Weisfeld_Iterations(facility_locations_list, nearest_facility_assignments):
     """
-    Weiszfeld yinelemesi ile tesislerin yeni yerleri.
-    Ağırlık: (h_j * C_kj) / d(x_k, a_j)
+    Update facility locations using the Weiszfeld iteration.
+    Weight: (h_j * C_kj) / d(x_k, a_j)
     """
     final_locations_list = []
     for k in range(m):
@@ -194,7 +194,7 @@ def Weisfeld_Iterations(facility_locations_list, nearest_facility_assignments):
     return final_locations_list
 
 # ------------------------------
-# AMAÇ FONKSİYONU
+# OBJECTIVE FUNCTION
 # ------------------------------
 def objective_function(final_facility_locations, list_of_customers_assigned_to_certain_facility):
     total = 0.0
@@ -206,11 +206,11 @@ def objective_function(final_facility_locations, list_of_customers_assigned_to_c
     return total
 
 # ------------------------------
-# ANA ÇÖZÜM DÖNGÜSÜ
+# MAIN SOLUTION LOOP
 # ------------------------------
 
 def ala_single_run():
-    # --- ANA ÇÖZÜM DÖNGÜSÜ (aynı içerik) ---
+    # --- Main solution loop ---
     initial_assignments = random_allocation(n, m)
     random_facility_coordinates = initial_coordinates_for_all_facilities(initial_assignments, m)
 
@@ -232,7 +232,7 @@ def ala_single_run():
         if total_difference <= TOL:
             break
 
-    # Karar değişkenleri ve amaç
+    # Decision variables and objective
     X_vars = [tuple(p) for p in W_k]
     Y_vars = assignments_to_y(nearest_list, m, n)
     obj    = objective_function(W_k, nearest_list)
@@ -242,7 +242,7 @@ def ala_single_run():
 
 
 # ------------------------------
-# MULTI-START: N_TRIALS koş, istatistik topla
+# MULTI-START:run N_TRIALS and collect statistics
 # ------------------------------
 all_vals = []
 all_iters = []
@@ -269,31 +269,31 @@ print(f"Average Objective Value:   {avg_val:.6f}")
 print(f"Std Dev Objective Value:   {std_val:.6f}")
 print(f"Average #Iterations:       {avg_iter:.2f}")
 
-# En iyi çözümün detaylarını yaz
+# print details of best solution
 obj, iters, W_k, nearest_list, X_vars, Y_vars, valid = best_pack
 
-# --- y_ij MATRİSİ (birebir 0/1 çıktı) ---
+# --- y_ij MATRIX (binary 0/1 output) ---
 print("\n--- y_ij (Assignment Matrix) ---")
 for i in range(m):
     row = " ".join(str(int(v)) for v in Y_vars[i])
     print(f"i={i+1}: {row}")
 
-# --- TESİS -> MÜŞTERİLER (okunur liste) ---
+# --- FACILITY -> CUSTOMERS(a list so that we see which customers are assigned to which facilities) ---
 print("\n--- Facility-Customer Assignments ---")
 for i in range(m):
     assigned_customers = [j+1 for j, v in enumerate(Y_vars[i]) if v == 1]  # 1-indexed gösterim
     if assigned_customers:
-        print(f"Tesis {i+1:<2}: {assigned_customers}")
+        print(f"Facility {i+1:<2}: {assigned_customers}")
     else:
-        print(f"Tesis {i+1:<2}: (boş)")
+        print(f"Facility {i+1:<2}: (empty)")
 
-# --- ÖZET TABLO ---
+# --- Summary table ---
 print("\n--- Facility Summary ---")
 print(f"{'Facility':<10} {'#Customers':<12} {'Status'}")
 print("-"*35)
 for i in range(m):
     num_cust = sum(Y_vars[i])
-    status = "Aktif" if num_cust > 0 else "Boş"
+    status = "Active" if num_cust > 0 else "Empty"
     print(f"{i+1:<10} {num_cust:<12} {status}")
 
 
@@ -306,28 +306,28 @@ print("\nBest Facility Locations:")
 for k in range(m):
     loc = W_k[k]
     cnt = len(nearest_list[k])
-    status = "Aktif" if cnt > 0 else "Boş"
-    print(f"Tesis_{k+1:<2}: Konum ({loc[0]:.4f}, {loc[1]:.4f}) | Müşteri Sayısı: {cnt:<4} | Durum: {status}")
+    status = "Active" if cnt > 0 else "Empty"
+    print(f"Facility_{k+1:<2}: Location ({loc[0]:.4f}, {loc[1]:.4f}) | Number of customers: {cnt:<4} | Status: {status}")
 
 # ------------------------------
-# ÇİZİM (Best Solution)
+# PLOTTING (Best Solution)
 # ------------------------------
 try:
     plt.figure(figsize=(11, 8))
     customer_x_coords, customer_y_coords = zip(*A)
-    plt.scatter(customer_x_coords, customer_y_coords, s=20, alpha=0.6, label='Müşteriler', color='blue')
+    plt.scatter(customer_x_coords, customer_y_coords, s=20, alpha=0.6, label='Customers', color='blue')
 
     active_facilities_locs = [W_k[k] for k in range(m) if len(nearest_list[k]) > 0]
     empty_facilities_locs  = [W_k[k] for k in range(m) if len(nearest_list[k]) == 0]
 
     if active_facilities_locs:
         ax, ay = zip(*active_facilities_locs)
-        plt.scatter(ax, ay, marker='X', s=200, color='red', label='Aktif Tesisler', zorder=5)
+        plt.scatter(ax, ay, marker='X', s=200, color='red', label='Active Facilities', zorder=5)
     if empty_facilities_locs:
         ex, ey = zip(*empty_facilities_locs)
-        plt.scatter(ex, ey, marker='X', s=200, color='gray', alpha=0.5, label='Boş Tesisler', zorder=5)
+        plt.scatter(ex, ey, marker='X', s=200, color='gray', alpha=0.5, label='Empty facilities', zorder=5)
 
-    # Atama çizgileri
+    # Assignment lines
     for k in range(m):
         xk, yk = W_k[k]
         for j in nearest_list[k]:
@@ -335,11 +335,11 @@ try:
             plt.plot([xk, xj], [yk, yj], linestyle='--', linewidth=0.5, color='orange', alpha=0.3)
 
     plt.title(f"Best Trial – Facility Locations & Assignments (m={m}, n={n})")
-    plt.xlabel("X Koordinatı")
-    plt.ylabel("Y Koordinatı")
+    plt.xlabel("X Coordinate")
+    plt.ylabel("Y Coordiante")
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.show()
 
 except Exception as e:
-    print(f"\nÇizim sırasında bir hata oluştu: {e}")
+    print(f"\nError faced during plotting: {e}")
