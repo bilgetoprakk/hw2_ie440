@@ -271,6 +271,32 @@ print(f"Average #Iterations:       {avg_iter:.2f}")
 
 # En iyi çözümün detaylarını yaz
 obj, iters, W_k, nearest_list, X_vars, Y_vars, valid = best_pack
+
+# --- y_ij MATRİSİ (birebir 0/1 çıktı) ---
+print("\n--- y_ij (Assignment Matrix) ---")
+for i in range(m):
+    row = " ".join(str(int(v)) for v in Y_vars[i])
+    print(f"i={i+1}: {row}")
+
+# --- TESİS -> MÜŞTERİLER (okunur liste) ---
+print("\n--- Facility-Customer Assignments ---")
+for i in range(m):
+    assigned_customers = [j+1 for j, v in enumerate(Y_vars[i]) if v == 1]  # 1-indexed gösterim
+    if assigned_customers:
+        print(f"Tesis {i+1:<2}: {assigned_customers}")
+    else:
+        print(f"Tesis {i+1:<2}: (boş)")
+
+# --- ÖZET TABLO ---
+print("\n--- Facility Summary ---")
+print(f"{'Facility':<10} {'#Customers':<12} {'Status'}")
+print("-"*35)
+for i in range(m):
+    num_cust = sum(Y_vars[i])
+    status = "Aktif" if num_cust > 0 else "Boş"
+    print(f"{i+1:<10} {num_cust:<12} {status}")
+
+
 print("\n--- Best Solution (Details) ---")
 print(f"Iterations: {iters}")
 print(f"Objective:  {obj:.6f}")
