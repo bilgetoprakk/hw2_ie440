@@ -1,7 +1,7 @@
 import csv
 import random
 import math
-import statistics as stats # İstatistikler için ekledik
+import statistics as stats 
 import matplotlib.pyplot as plt
 
 # ------------------------------
@@ -14,11 +14,11 @@ demands_path = 'demand_6.csv'
 N_TRIALS = 1000 # Number of trials
 TOL = 1e-9      # Convergence tolerance (for stability, not used directly in this specific ALA structure)
 RNG_SEED = 42
-random.seed(RNG_SEED) # Rastgeleliği sabitledik
+random.seed(RNG_SEED) 
 
 # --- DECISION VARIABLES (Homework Notation) ---
-# xi : facility locations (list of tuples) -> heuristic'in bulduğu konumları burada saklayacağız
-# yij: assignment matrix (m x n, 0/1) -> müşteri j, tesis i'ye atanmışsa 1, aksi halde 0
+# xi : facility locations (list of tuples) -> We will store the locations found by the heuristic here.
+# yij: assignment matrix (m x n, 0/1) -> 1 if customer j is assigned to facility i, 0 otherwise
 X_vars = None  # [(x1_1, x2_1), ..., (x1_m, x2_m)]
 Y_vars = None  # [[y11, y12, ... y1n], ..., [ym1, ... ymn]]
 
@@ -78,7 +78,7 @@ n_customers = len(coordinates_data)
 r_costs = len(costs_rows)
 c_costs = len(costs_rows[0]) if r_costs > 0 else 0
 
-# Maliyet Matrisini (Cmat) m x n (Tesis x Müşteri) formatına ayarlama
+# Set the Cost Matrix (Cmat) to m x n (Facility x Customer) format
 if r_costs == n_customers and c_costs > 0:
     Cmat = transpose(costs_rows) # m x n
     N_FACILITIES = c_costs
@@ -90,17 +90,17 @@ else:
 
 print(f"Number of facilities determined from cost data: {N_FACILITIES}, Customers: {n_customers}\n")
 
-# --- CORE FUNCTIONS (P=2 MANTIKLI) ---
+# --- CORE FUNCTIONS (P=2) ---
 
 def solve_single_facility(customer_indices, coords, demands, k_facility_index):
     """
-    P=2 Location Step: Ağırlıklı Ortalama (Centroid) konumu bulur. 
-    Ağırlık: Talep * Maliyet (h_j * C_kj)
+   P=2 Location Step: Finds the Weighted Average (Centroid) location. Weight: Demand * Cost (h_j * C_kj)
+    for the facility at index k_facility_index given assigned customers.
     """
     total_x, total_y, total_weight = 0.0, 0.0, 0.0
     k = k_facility_index
     for i in customer_indices:
-        # Ağırlık = Talep * Maliyet
+        # Weight = Demand * Cost
         weight = demands[i] * Cmat[k][i]
         
         total_x += weight * coords[i][0]
@@ -112,36 +112,35 @@ def solve_single_facility(customer_indices, coords, demands, k_facility_index):
     return (total_x / total_weight, total_y / total_weight)
 
 def squared_euclidean_distance(coord1, coord2):
-    """Karesel Öklid mesafesini hesaplar."""
+    """Calculates the quadratic Euclidean distance."""
     return (coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2
 
-# --- ASSIGNMENTS -> y_ij (0/1) Yardımcı Fonksiyonu ---
+# --- ASSIGNMENTS -> y_ij (0/1) Auxiliary Function ---
 def assignments_to_y(assignments, m, n):
     """
-    'assignments' (tesis başına müşteri indeks listesi) yapısını,
-    y_ij=1 müşteri j tesis i'ye atanmışsa, aksi halde 0 olacak şekilde
-    (m x n) ikili matrise dönüştürür.
+    Converts assignments list to y_ij binary matrix.
+    assignments: list of lists, where assignments[i] contains indices of customers assigned to facility i
     """
     y = [[0]*n for _ in range(m)]
     for i_fac in range(m):
         for j in assignments[i_fac]:
-            y[i_fac][j] = 1  # müşteri j, tesis i_fac'e atanmış
+            y[i_fac][j] = 1  # customer j is assigned to facility i_fac
     return y
 
 def run_ALA():
     """Runs one iteration of the Alternate Location-Allocation Algorithm."""
     
-    # 1. Başlangıç Ataması
+    # Initial Random Assignment
     assignments = [[] for _ in range(N_FACILITIES)]
     for i in range(n_customers):
         k = random.randint(0, N_FACILITIES - 1)
         assignments[k].append(i)
 
-    # 2. Başlangıç Konumu (Centroid)
+    # Centroid
     locations = [solve_single_facility(assignments[k], coordinates_data, demands_data, k) 
                  for k in range(N_FACILITIES)]
 
-    # Boş tesis onarımı (repair empty facilities)
+    # repair empty facilities
     for k in range(N_FACILITIES):
         if locations[k] is None:
             random_customer = random.randint(0, n_customers - 1)
@@ -150,16 +149,16 @@ def run_ALA():
     best_objective = float('inf')
     
     while True:
-        # A. ATAMA ADIMI (Allocation Step)
+        # Allocation Step
         new_assignments = [[] for _ in range(N_FACILITIES)]
-        locations_backup = locations # Konum değişmedi, sadece atama değişiyor
+        locations_backup = locations # The location has not changed, only the assignment has changed.
         
         for i, customer_coord in enumerate(coordinates_data):
             min_cost = float('inf')
             best_k = None
             
             for k in range(N_FACILITIES):
-                # Maliyet * Karesel Mesafe (Düzeltilen Mantık)
+                # Cost * Square Distance (C_ki * d^2(a_i, x_k))
                 d_sq = squared_euclidean_distance(customer_coord, locations_backup[k])
                 cost = Cmat[k][i] * d_sq
                 
@@ -170,13 +169,13 @@ def run_ALA():
             if best_k is not None:
                 new_assignments[best_k].append(i)
         
-        # B. YERLEŞİM ADIMI (Location Step)
+        # Location Step
         new_locations = [
             solve_single_facility(new_assignments[k], coordinates_data, demands_data, k)
             for k in range(N_FACILITIES)
         ]
 
-        # Boş tesisleri bir önceki konuma sabitle
+        # Pin empty facilities to previous location
         updated_locations = []
         for k in range(N_FACILITIES):
             if new_locations[k] is None:
@@ -184,7 +183,7 @@ def run_ALA():
             else:
                 updated_locations.append(new_locations[k])
 
-        # C. AMAÇ FONKSİYONU (Objective Function)
+        # Objective Function
         new_objective = 0
         for k in range(N_FACILITIES):
             loc = updated_locations[k]
@@ -193,7 +192,7 @@ def run_ALA():
                 term = (demands_data[i] * Cmat[k][i] * squared_euclidean_distance(coordinates_data[i], loc))
                 new_objective += term
 
-        # D. YAKINSAMA KONTROLÜ
+    
         if new_objective < best_objective:
             best_objective = new_objective
             locations = updated_locations
@@ -250,7 +249,8 @@ for i in range(N_FACILITIES):
     row = " ".join(str(int(v)) for v in Y_vars[i])
     print(f"i={i+1}: {row}")
 """""
-# (Opsiyonel) Doğrulama: her müşteri tam bir tesise atanmış mı? sum_i y_ij = 1
+# --- VALIDITY CHECKS ---
+# Each customer assigned to exactly one facility
 valid = all(sum(Y_vars[i][j] for i in range(N_FACILITIES)) == 1 for j in range(n_customers))
 print(f"\nAssignment validity (∀j Σ_i y_ij = 1): {valid}")
 
