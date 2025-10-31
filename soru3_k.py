@@ -244,11 +244,12 @@ print("\n--- Decision Variables (Heuristic Solution) ---")
 for i, (x1, x2) in enumerate(X_vars, start=1):
     print(f"x_{i} = ({x1:.4f}, {x2:.4f})")
 
+"""""
 print("\ny_ij (assignment matrix, 1 if customer j assigned to facility i else 0)")
 for i in range(N_FACILITIES):
     row = " ".join(str(int(v)) for v in Y_vars[i])
     print(f"i={i+1}: {row}")
-
+"""""
 # (Opsiyonel) Doğrulama: her müşteri tam bir tesise atanmış mı? sum_i y_ij = 1
 valid = all(sum(Y_vars[i][j] for i in range(N_FACILITIES)) == 1 for j in range(n_customers))
 print(f"\nAssignment validity (∀j Σ_i y_ij = 1): {valid}")
@@ -289,3 +290,11 @@ try:
 
 except Exception as e:
     print(f"\nPlotting Error: {e}")
+
+print("\n--- Customer Assignments by Facility ---")
+for i in range(N_FACILITIES):
+    assigned_customers = [j+1 for j, val in enumerate(Y_vars[i]) if val == 1]
+    if assigned_customers:
+        print(f"Facility_{i+1:<2}: Customers → {assigned_customers}")
+    else:
+        print(f"Facility_{i+1:<2}: No customers assigned")
