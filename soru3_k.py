@@ -130,17 +130,17 @@ def assignments_to_y(assignments, m, n):
 def run_ALA():
     """Runs one iteration of the Alternate Location-Allocation Algorithm."""
     
-    # 1. Başlangıç Ataması
+    # Initial Random Assignment
     assignments = [[] for _ in range(N_FACILITIES)]
     for i in range(n_customers):
         k = random.randint(0, N_FACILITIES - 1)
         assignments[k].append(i)
 
-    # 2. Başlangıç Konumu (Centroid)
+    # Centroid
     locations = [solve_single_facility(assignments[k], coordinates_data, demands_data, k) 
                  for k in range(N_FACILITIES)]
 
-    # Boş tesis onarımı (repair empty facilities)
+    # repair empty facilities
     for k in range(N_FACILITIES):
         if locations[k] is None:
             random_customer = random.randint(0, n_customers - 1)
