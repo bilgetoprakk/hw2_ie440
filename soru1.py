@@ -117,7 +117,7 @@ Ckj_selected = C[FACILITY_INDEX_TO_SOLVE]
 
 def squared_euclidean_distance(x1, y1, x2, y2):
     """Calculates the squared Euclidean distance."""
-    return (x1 - x2)*2 + (y1 - y2)*2
+    return (x1 - x2)**2 + (y1 - y2)**2
 
 def objective_function(Ckj, coord, coordinates):
     """Calculates the total weighted squared Euclidean cost."""
