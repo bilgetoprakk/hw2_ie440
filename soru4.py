@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 
 import statistics as stats  
-N_TRIALS = 100             # number of random initializations
+N_TRIALS = 100             #number of random initializations
 
 # ------------------------------
 # CONFIG
