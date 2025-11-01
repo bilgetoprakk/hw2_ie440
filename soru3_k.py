@@ -160,7 +160,8 @@ def run_ALA():
             for k in range(N_FACILITIES):
                 # Cost * Square Distance (C_ki * d^2(a_i, x_k))
                 d_sq = squared_euclidean_distance(customer_coord, locations_backup[k])
-                cost = Cmat[k][i] * d_sq
+                cost = d_sq
+
                 
                 if cost < min_cost:
                     min_cost = cost
