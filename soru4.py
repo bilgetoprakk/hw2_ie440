@@ -151,7 +151,8 @@ def nearest_facility(list_of_new_locations):
         best_val = float('inf')
         for k in range(m):
             xk = list_of_new_locations[k]
-            val = Cmat[k][j] * euclidian_distance(xk, aj)
+            val = euclidian_distance(xk, aj)   # only distance
+
             if val < best_val:
                 best_val = val
                 best_k = k
