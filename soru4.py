@@ -142,7 +142,7 @@ def initial_coordinates_for_all_facilities(random_allocation_list, number_of_fac
 def nearest_facility(list_of_new_locations):
     """
     Reassign customers to existing facilities.
-    Criterion: min_k (C_kj * d(x_k, a_j))
+    
     """
     facility_assignments = [[] for _ in range(m)]
     for j in range(n):
