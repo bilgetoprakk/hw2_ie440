@@ -158,7 +158,7 @@ def run_ALA():
             best_k = None
             
             for k in range(N_FACILITIES):
-                # Cost * Square Distance (C_ki * d^2(a_i, x_k))
+
                 d_sq = squared_euclidean_distance(customer_coord, locations_backup[k])
                 cost = d_sq
 
