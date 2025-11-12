@@ -94,32 +94,25 @@ def exact_line_search(x, d, eps2=EPS2, a=A, b=B):
 # ============================================================
 
 def cyclic_coordinate_search(x0, eps1, eps2=EPS2, a=A, b=B, max_iter=10000):
-    """
-    CCS minimizes f(x) by optimizing one coordinate at a time (x1 then x2, cyclic).
-    Convergence check: |f(x_{k+1}) - f(x_k)| < eps1 after a full cycle.
-    Returns:
-        x_star, f_star, history_rows
-        history_rows columns: [k, x(k), f(x(k)), d(k), alpha(k), x(k+1)]
-    """
+
     x = np.array(x0, float)
     n = len(x)
     hist = []
-
-    for k in range(max_iter):
+    step = 0  
+    for _k in range(max_iter):
         f_old = f(x.copy())
-
         for i in range(n):
-            d = np.zeros(n); d[i] = 1.0      # unit vector along coordinate i
+            d = np.zeros(n); d[i] = 1.0
             alpha = exact_line_search(x, d, eps2, a, b)
             x_next = x + alpha * d
-            hist.append([k, tuple(x), f(x), tuple(d), float(alpha), tuple(x_next)])
+            hist.append([step, tuple(x), f(x), tuple(d), float(alpha), tuple(x_next)])
             x = x_next
+            step += 1  
 
         if abs(f(x) - f_old) < eps1:
             break
 
     return x, f(x), hist
-
 # ============================================================
 # ========= HOOK–JEEVES (EXPLORATORY + PATTERN MOVE) =========
 # ============================================================
