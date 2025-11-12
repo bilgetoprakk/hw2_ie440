@@ -69,19 +69,28 @@ def exact_line_search(x, d, eps2=EPS2, a=A, b=B):
 # ============== Cyclic Coordinate Search (CCS) ==============
 # ============================================================
 def cyclic_coordinate_search(x0, eps1, eps2=EPS2, a=A, b=B, max_iter=10000):
+
     x = np.array(x0, float)
     n = len(x)
     hist = []
-    for k in range(max_iter):
+    step = 0  # her koordinat adımı için benzersiz artan sayaç
+
+    for _k in range(max_iter):
         f_old = f(x.copy())
         for i in range(n):
             d = np.zeros(n); d[i] = 1.0
             alpha = exact_line_search(x, d, eps2, a, b)
-            x_next = x + alpha*d
-            hist.append([k, tuple(x), f(x), tuple(d), float(alpha), tuple(x_next)])
+            x_next = x + alpha * d
+
+            # 'k' yerine benzersiz 'step' kaydediyoruz
+            hist.append([step, tuple(x), f(x), tuple(d), float(alpha), tuple(x_next)])
+
             x = x_next
-        if abs(f(x)- f_old) < eps1:
+            step += 1  # her koordinat adımından sonra artır
+
+        if abs(f(x) - f_old) < eps1:
             break
+
     return x, f(x), hist
 
 # ============================================================
