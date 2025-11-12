@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 # ====================== CONFIGURATION =======================
 # ============================================================
 
-# Fixed by HW3 (DO NOT CHANGE)
+# Fixed by HW3
 EPS2 = 0.005            # Tolerance for exact line search (Golden Section)
 A, B = -100.0, 100.0    # Interval [a, b] for line search
 
