@@ -1,16 +1,3 @@
-"""
-IE440 – HW3 Minimal Solver (Cyclic Coordinate, Hook–Jeeves, Simplex)
-Author: OptiMaster (minimal version: no classes, few libs)
-
-Objective:
-    f(x1, x2) = (5 x1 − x2)^4 + (x1 − 2)^2 + x1 − 2 x2 + 12
-
-Key points:
-- Exact line search along a direction uses Golden Section with fixed params:
-  (eps2, a, b) = (0.005, -100, 100)  [required by HW3]
-- TWO runs for CCS and HJ (different (eps1, x0) and (eps1, x0, delta0)), TWO initial simplexes for Simplex.
-- CSV outputs in ./outputs; pretty console tables; basic path plots.
-"""
 
 import os, math, csv
 import numpy as np
@@ -23,55 +10,34 @@ import matplotlib.pyplot as plt
 EPS2 = 0.005            # exact line-search tolerance
 A, B = -100.0, 100.0    # exact line-search interval [a,b]
 
-# ---- YOU CHOOSE: two parameter sets for CCS ----
+# ----two parameter sets for CCS ----
 #    Each item: (eps1, x0)
 CCS_SETS = [
-    (1e-4, np.array([0.0, 0.0], dtype=float)),     # Set 1
-    (1e-5, np.array([5.0, -5.0], dtype=float)),    # Set 2
+    (1e-4, np.array([1.0, 0.0], dtype=float)),     # Set 1
+    (1e-5, np.array([1.0, -1.0], dtype=float)),    # Set 2
 ]
 
-# ---- YOU CHOOSE: two parameter sets for Hook–Jeeves ----
+# ---- two parameter sets for Hook–Jeeves ----
 #    Each item: (eps1, x0, delta0)
 HJ_SETS = [
-    (1e-4, np.array([0.0, 0.0], dtype=float), 1.0),    # Set 1
-    (1e-5, np.array([5.0, -5.0], dtype=float), 2.0),   # Set 2
+    (1e-4, np.array([1.0, 0.0], dtype=float), 1.0),    # Set 1
+    (1e-5, np.array([1.0, -1.0], dtype=float), 2.0),   # Set 2
 ]
 
-# ---- YOU MAY ADJUST: initial simplexes for Simplex (Nelder–Mead) ----
+# ---- initial simplexes for Simplex (Nelder–Mead) ----
 SIMPLEX_SETS = [
     np.array([[2.0, 3.0],[2.05,3.0],[2.0,3.05]], dtype=float),
     np.array([[0.0, 0.0],[0.5, 0.0],[0.0,0.5]], dtype=float),
 ]
 
 # ============================================================
-# ==================== OBJECTIVE & PLOTS =====================
+# ==================== OBJECTIVE =====================
 # ============================================================
 def f(x):
     x1, x2 = float(x[0]), float(x[1])
     return (5*x1 - x2)**4 + (x1 - 2)**2 + x1 - 2*x2 + 12
 
-def plot_objective(out_dir="./outputs"):
-    os.makedirs(out_dir, exist_ok=True)
-    x1 = np.linspace(-3, 8, 250)
-    x2 = np.linspace(-5, 40, 250)
-    X1, X2 = np.meshgrid(x1, x2)
-    Z = (5*X1 - X2)**4 + (X1 - 2)**2 + X1 - 2*X2 + 12
 
-    # surface
-    from mpl_toolkits.mplot3d import Axes3D  # noqa
-    fig = plt.figure(figsize=(7,5))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X1, X2, Z, linewidth=0, antialiased=True, alpha=0.85)
-    ax.set_xlabel('x1'); ax.set_ylabel('x2'); ax.set_zlabel('f')
-    ax.set_title('Objective Function Surface')
-    plt.tight_layout(); fig.savefig(os.path.join(out_dir, "objective_surface.png")); plt.close(fig)
-
-    # contour
-    fig = plt.figure(figsize=(6,5))
-    cp = plt.contourf(X1, X2, Z, levels=60)
-    plt.colorbar(cp)
-    plt.title('Objective Function Contour'); plt.xlabel('x1'); plt.ylabel('x2')
-    plt.tight_layout(); fig.savefig(os.path.join(out_dir, "objective_contour.png")); plt.close(fig)
 
 # ============================================================
 # ============== 1D Golden Section (exact search) ============
@@ -114,7 +80,7 @@ def cyclic_coordinate_search(x0, eps1, eps2=EPS2, a=A, b=B, max_iter=10000):
             x_next = x + alpha*d
             hist.append([k, tuple(x), f(x), tuple(d), float(alpha), tuple(x_next)])
             x = x_next
-        if abs(f(x) - f_old) < eps1:
+        if abs(f(x)- f_old) < eps1:
             break
     return x, f(x), hist
 
@@ -267,9 +233,7 @@ if __name__ == "__main__":
     out_dir = "./outputs"
     os.makedirs(out_dir, exist_ok=True)
 
-    # objective plots
-    plot_objective(out_dir)
-    print(f"Objective function plots saved in {out_dir}")
+
 
     # analytical reference (for verification)
     y_star = -(2**(-1/3))
